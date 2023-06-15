@@ -2168,7 +2168,7 @@ module CLMFatesInterfaceMod
     use clm_varctl        , only : iulog
     use PatchType         , only : patch
     use quadraticMod      , only : quadratic
-    use EDtypesMod        , only : ed_site_type
+    use FatesSiteMod      , only : fates_site_type
     use FatesPatchMod,      only : fates_patch_type
     use FatesCohortMod    , only : fates_cohort_type
 

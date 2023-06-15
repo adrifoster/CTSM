@@ -44,7 +44,7 @@ module CanopyFluxesMod
   use GridcellType          , only : grc                
   use ColumnType            , only : col                
   use PatchType             , only : patch                
-  use EDTypesMod            , only : ed_site_type
+  use FatesSiteMod            , only : fates_site_type
   use SoilWaterRetentionCurveMod, only : soil_water_retention_curve_type
   use LunaMod               , only : Update_Photosynthesis_Capacity, Acc24_Climate_LUNA,Acc240_Climate_LUNA,Clear24_Climate_LUNA
   !
