@@ -131,8 +131,6 @@ module CLMFatesInterfaceMod
    use FatesInterfaceTypesMod, only : fates_maxPatchesPerSite
    use EDMainMod             , only : ed_ecosystem_dynamics
    use EDMainMod             , only : ed_update_site
-   use EDInitMod             , only : zero_site
-   use EDInitMod             , only : init_site_vars
    use EDInitMod             , only : init_patches
    use EDInitMod             , only : set_site_properties
    use EDPftVarcon           , only : EDpftvarcon_inst
@@ -1723,10 +1721,9 @@ module CLMFatesInterfaceMod
            call get_clump_bounds(nc, bounds_clump)
 
            do s = 1,this%fates(nc)%nsites
-              call init_site_vars(this%fates(nc)%sites(s), &
-                                  this%fates(nc)%bc_in(s), &
-                                  this%fates(nc)%bc_out(s) )
-              call zero_site(this%fates(nc)%sites(s))
+              call this%fates(nc)%sites(s)%Init(this%fates(nc)%bc_in(s)%nlevsoil,        &
+                this%fates(nc)%bc_in(s)%zi_sisl, this%fates(nc)%bc_in(s)%dz_sisl,        & 
+                this%fates(nc)%bc_in(s)%z_sisl)
            end do
 
            call set_site_properties(this%fates(nc)%nsites, &
