@@ -132,6 +132,7 @@ module CLMFatesInterfaceMod
    use FatesInterfaceTypesMod, only : hlm_use_fixed_biogeog
    use FatesInterfaceTypesMod, only : hlm_use_nocomp
    use FatesInterfaceTypesMod, only : hlm_day_of_year
+   use FatesInterfaceTypesMod, only : hlm_is_restart
    use EDMainMod             , only : ed_ecosystem_dynamics
    use EDMainMod             , only : ed_update_site
    use EDInitMod             , only : init_patches
@@ -1724,12 +1725,14 @@ module CLMFatesInterfaceMod
            call get_clump_bounds(nc, bounds_clump)
 
            do s = 1,this%fates(nc)%nsites
-              call this%fates(nc)%sites(s)%Init(this%fates(nc)%bc_in(s)%nlevsoil,        &
-                this%fates(nc)%bc_in(s)%zi_sisl, this%fates(nc)%bc_in(s)%dz_sisl,        & 
-                this%fates(nc)%bc_in(s)%z_sisl)
+              if (hlm_is_restart == ifalse) then 
+                call this%fates(nc)%sites(s)%Init(this%fates(nc)%bc_in(s)%nlevsoil,      &
+                  this%fates(nc)%bc_in(s)%zi_sisl, this%fates(nc)%bc_in(s)%dz_sisl,      & 
+                  this%fates(nc)%bc_in(s)%z_sisl)
 
-              call this%fates(nc)%sites(s)%Create(hlm_use_fixed_biogeog, hlm_use_nocomp, &
-                hlm_day_of_year, this%fates(nc)%bc_in(s)%pft_areafrac)
+                call this%fates(nc)%sites(s)%Create(hlm_use_fixed_biogeog,               &
+                  hlm_use_nocomp, hlm_day_of_year, this%fates(nc)%bc_in(s)%pft_areafrac)
+              end if 
            end do
 
            ! ----------------------------------------------------------------------------
