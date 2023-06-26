@@ -129,6 +129,9 @@ module CLMFatesInterfaceMod
    use PRTGenericMod         , only : num_elements
    use FatesInterfaceTypesMod, only : hlm_stepsize
    use FatesInterfaceTypesMod, only : fates_maxPatchesPerSite
+   use FatesInterfaceTypesMod, only : hlm_use_fixed_biogeog
+   use FatesInterfaceTypesMod, only : hlm_use_nocomp
+   use FatesInterfaceTypesMod, only : hlm_day_of_year
    use EDMainMod             , only : ed_ecosystem_dynamics
    use EDMainMod             , only : ed_update_site
    use EDInitMod             , only : init_patches
@@ -1724,6 +1727,9 @@ module CLMFatesInterfaceMod
               call this%fates(nc)%sites(s)%Init(this%fates(nc)%bc_in(s)%nlevsoil,        &
                 this%fates(nc)%bc_in(s)%zi_sisl, this%fates(nc)%bc_in(s)%dz_sisl,        & 
                 this%fates(nc)%bc_in(s)%z_sisl)
+
+              !call this%fates(nc)%sites(s)%Create(hlm_use_fixed_biogeog, hlm_use_nocomp,  &
+              !  hlm_day_of_year, this%fates(nc)%bc_in(s)%pft_areafrac)
            end do
 
            call set_site_properties(this%fates(nc)%nsites, &
