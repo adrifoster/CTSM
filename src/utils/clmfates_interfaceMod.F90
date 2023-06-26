@@ -1725,14 +1725,11 @@ module CLMFatesInterfaceMod
            call get_clump_bounds(nc, bounds_clump)
 
            do s = 1,this%fates(nc)%nsites
-              if (hlm_is_restart == ifalse) then 
-                call this%fates(nc)%sites(s)%Init(this%fates(nc)%bc_in(s)%nlevsoil,      &
-                  this%fates(nc)%bc_in(s)%zi_sisl, this%fates(nc)%bc_in(s)%dz_sisl,      & 
-                  this%fates(nc)%bc_in(s)%z_sisl)
-
-                call this%fates(nc)%sites(s)%Create(hlm_use_fixed_biogeog,               &
-                  hlm_use_nocomp, hlm_day_of_year, this%fates(nc)%bc_in(s)%pft_areafrac)
-              end if 
+              call this%fates(nc)%sites(s)%Init(this%fates(nc)%bc_in(s)%nlevsoil,      &
+                this%fates(nc)%bc_in(s)%zi_sisl, this%fates(nc)%bc_in(s)%dz_sisl,      & 
+                this%fates(nc)%bc_in(s)%z_sisl)
+              call this%fates(nc)%sites(s)%Create(hlm_use_fixed_biogeog,               &
+                hlm_use_nocomp, hlm_day_of_year, this%fates(nc)%bc_in(s)%pft_areafrac)
            end do
 
            ! ----------------------------------------------------------------------------
