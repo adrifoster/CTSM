@@ -1728,14 +1728,9 @@ module CLMFatesInterfaceMod
                 this%fates(nc)%bc_in(s)%zi_sisl, this%fates(nc)%bc_in(s)%dz_sisl,        & 
                 this%fates(nc)%bc_in(s)%z_sisl)
 
-              !call this%fates(nc)%sites(s)%Create(hlm_use_fixed_biogeog, hlm_use_nocomp,  &
-              !  hlm_day_of_year, this%fates(nc)%bc_in(s)%pft_areafrac)
+              call this%fates(nc)%sites(s)%Create(hlm_use_fixed_biogeog, hlm_use_nocomp, &
+                hlm_day_of_year, this%fates(nc)%bc_in(s)%pft_areafrac)
            end do
-
-           call set_site_properties(this%fates(nc)%nsites, &
-                                    this%fates(nc)%sites,  &
-                                    this%fates(nc)%bc_in)
-
 
            ! ----------------------------------------------------------------------------
            ! Initialize satellite phenology values if turned on
