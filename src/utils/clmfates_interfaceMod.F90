@@ -1722,15 +1722,14 @@ module CLMFatesInterfaceMod
 
         if ( this%fates(nc)%nsites>0 ) then
 
-           call get_clump_bounds(nc, bounds_clump)
+          call get_clump_bounds(nc, bounds_clump)
 
-           do s = 1,this%fates(nc)%nsites
-              call this%fates(nc)%sites(s)%Init(this%fates(nc)%bc_in(s)%nlevsoil,      &
-                this%fates(nc)%bc_in(s)%zi_sisl, this%fates(nc)%bc_in(s)%dz_sisl,      & 
-                this%fates(nc)%bc_in(s)%z_sisl)
-              call this%fates(nc)%sites(s)%Create(hlm_use_fixed_biogeog,               &
-                hlm_use_nocomp, hlm_day_of_year, this%fates(nc)%bc_in(s)%pft_areafrac)
-           end do
+          do s = 1,this%fates(nc)%nsites
+            call this%fates(nc)%sites(s)%Create(this%fates(nc)%bc_in(s)%nlevsoil,        &
+              this%fates(nc)%bc_in(s)%zi_sisl, this%fates(nc)%bc_in(s)%dz_sisl,          & 
+              this%fates(nc)%bc_in(s)%z_sisl, hlm_use_fixed_biogeog, hlm_use_nocomp,     &
+              hlm_day_of_year, this%fates(nc)%bc_in(s)%pft_areafrac)
+          end do
 
            ! ----------------------------------------------------------------------------
            ! Initialize satellite phenology values if turned on
