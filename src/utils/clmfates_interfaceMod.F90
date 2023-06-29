@@ -136,7 +136,6 @@ module CLMFatesInterfaceMod
    use EDMainMod             , only : ed_ecosystem_dynamics
    use EDMainMod             , only : ed_update_site
    use EDInitMod             , only : init_patches
-   use EDInitMod             , only : set_site_properties
    use EDPftVarcon           , only : EDpftvarcon_inst
    use EDSurfaceRadiationMod , only : ED_SunShadeFracs, ED_Norman_Radiation
    use EDBtranMod            , only : btran_ed, &
@@ -3139,7 +3138,7 @@ module CLMFatesInterfaceMod
    use FatesInterfaceTypesMod, only : nlevdamage
    use FatesLitterMod,         only : nfsc
    use FatesLitterMod,         only : ncwd
-   use EDParamsMod,            only : nlevleaf, nclmax
+   use FatesConstantsMod,      only : nlevleaf, nclmax
    use FatesInterfaceTypesMod, only : numpft_fates => numpft
    
 
