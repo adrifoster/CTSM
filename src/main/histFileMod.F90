@@ -21,8 +21,8 @@ module histFileMod
   use LandunitType   , only : lun
   use ColumnType     , only : col
   use PatchType      , only : patch
-  use EDParamsMod    , only : nclmax
-  use EDParamsMod    , only : nlevleaf
+  use FatesConstantsMod, only : nclmax
+  use FatesConstantsMod, only : nlevleaf
   use FatesInterfaceTypesMod , only : nlevsclass, nlevage, nlevcoage
   use FatesInterfaceTypesMod , only : nlevheight
   use FatesInterfaceTypesMod , only : nlevdamage
