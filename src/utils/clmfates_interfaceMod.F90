@@ -1,204 +1,175 @@
 module CLMFatesInterfaceMod
 
-   ! -------------------------------------------------------------------------------------
-   ! This module contains various functions and definitions to aid in the
-   ! coupling of the FATES library/API with the CLM/ALM/ATS/etc model driver.
-   ! All connections between the two models should occur in this file alone.
-   !
-   ! This is also the only location where CLM code is allowed to see FATES memory
-   ! structures.
-   ! The routines here, that call FATES library routines, will not pass any types defined
-   ! by the driving land model (HLM).
-   !
-   ! either native type arrays (int,real,log, etc) or packed into fates boundary condition
-   ! structures.
-   !
-   ! Note that CLM/ALM does use Shared Memory Parallelism (SMP), where processes such as
-   ! the update of state variables are forked.  However, IO is not assumed to be
-   ! threadsafe and therefore memory spaces reserved for IO must be continuous vectors,
-   ! and moreover they must be pushed/pulled from history IO for each individual
-   ! bounds_proc memory space as a unit.
-   !
-   ! Therefore, the state variables in the clm_fates communicator is vectorized by
-   ! threadcount, and the IO communication arrays are not.
-   !
-   !
-   ! Conventions:
-   ! keep line widths within 90 spaces
-   ! HLM acronym = Host Land Model
-   !
-   ! -------------------------------------------------------------------------------------
+  ! -------------------------------------------------------------------------------------
+  ! This module contains various functions and definitions to aid in the
+  ! coupling of the FATES library/API with the CLM/ALM/ATS/etc model driver.
+  ! All connections between the two models should occur in this file alone.
+  !
+  ! This is also the only location where CLM code is allowed to see FATES memory
+  ! structures.
+  ! The routines here, that call FATES library routines, will not pass any types defined
+  ! by the driving land model (HLM).
+  !
+  ! either native type arrays (int,real,log, etc) or packed into fates boundary condition
+  ! structures.
+  !
+  ! Note that CLM/ALM does use Shared Memory Parallelism (SMP), where processes such as
+  ! the update of state variables are forked.  However, IO is not assumed to be
+  ! threadsafe and therefore memory spaces reserved for IO must be continuous vectors,
+  ! and moreover they must be pushed/pulled from history IO for each individual
+  ! bounds_proc memory space as a unit.
+  !
+  ! Therefore, the state variables in the clm_fates communicator is vectorized by
+  ! threadcount, and the IO communication arrays are not.
+  !
+  !
+  ! Conventions:
+  ! keep line widths within 90 spaces
+  ! HLM acronym = Host Land Model
+  !
+  ! -------------------------------------------------------------------------------------
 
-   !  use ed_driver_interface, only:
-
-   ! Used CLM Modules
 #include "shr_assert.h"
-   use PatchType         , only : patch
-   use shr_kind_mod      , only : r8 => shr_kind_r8
-   use decompMod         , only : bounds_type, subgrid_level_column
-   use WaterStateBulkType    , only : waterstatebulk_type
-   use WaterDiagnosticBulkType    , only : waterdiagnosticbulk_type
-   use WaterFluxBulkType     , only : waterfluxbulk_type
-   use Wateratm2lndBulkType     , only : wateratm2lndbulk_type
-   use ActiveLayerMod    , only : active_layer_type
-   use CanopyStateType   , only : canopystate_type
-   use TemperatureType   , only : temperature_type
-   use EnergyFluxType    , only : energyflux_type
-   use SoilStateType     , only : soilstate_type
-   use CNProductsMod     , only : cn_products_type
-   use clm_varctl        , only : iulog
-   use clm_varctl        , only : fates_parteh_mode
-   use clm_varctl        , only : use_fates
-   use clm_varctl        , only : fates_spitfire_mode
-   use clm_varctl        , only : use_fates_tree_damage
-   use clm_varctl        , only : use_fates_planthydro
-   use clm_varctl        , only : use_fates_cohort_age_tracking
-   use clm_varctl        , only : use_fates_ed_st3
-   use clm_varctl        , only : use_fates_ed_prescribed_phys
-   use clm_varctl        , only : use_fates_logging
-   use clm_varctl        , only : use_fates_inventory_init
-   use clm_varctl        , only : use_fates_fixed_biogeog
-   use clm_varctl        , only : use_fates_nocomp
-   use clm_varctl        , only : use_fates_sp
-   use clm_varctl        , only : fates_inventory_ctrl_filename
-   use clm_varctl        , only : use_nitrif_denitrif
-   use clm_varctl        , only : use_lch4
-   use clm_varcon        , only : tfrz
-   use clm_varcon        , only : spval
-   use clm_varcon        , only : denice
-   use clm_varcon        , only : ispval
-   use clm_varpar        , only : surfpft_lb,surfpft_ub
-   use clm_varpar        , only : numrad
-   use clm_varpar        , only : ivis
-   use clm_varpar        , only : inir
-   use clm_varpar        , only : nlevdecomp
-   use clm_varpar        , only : nlevdecomp_full
-   use clm_varpar        , only : nlevsoi
-   use PhotosynthesisMod , only : photosyns_type
-   use atm2lndType       , only : atm2lnd_type
-   use SurfaceAlbedoType , only : surfalb_type
-   use SolarAbsorbedType , only : solarabs_type
-   use SoilBiogeochemCarbonFluxType, only :  soilbiogeochem_carbonflux_type
-   use SoilBiogeochemCarbonStateType, only : soilbiogeochem_carbonstate_type
-   use FrictionVelocityMod  , only : frictionvel_type
-   use clm_time_manager  , only : is_restart, is_first_restart_step
-   use ncdio_pio         , only : file_desc_t, ncd_int, ncd_double
-   use restUtilMod,        only : restartvar
-   use clm_time_manager  , only : get_curr_days_per_year, &
-                                  get_curr_date,     &
-                                  get_ref_date,      &
-                                  timemgr_datediff,  &
-                                  is_beg_curr_day,   &
-                                  get_step_size_real,&
-                                  get_nstep
-   use spmdMod           , only : masterproc
-   use decompMod         , only : get_proc_bounds,   &
-                                  get_proc_clumps,   &
-                                  get_clump_bounds
-   use SoilBiogeochemDecompCascadeConType , only : mimics_decomp, decomp_method
-   use SoilBiogeochemDecompCascadeConType , only : no_soil_decomp, century_decomp
-   use GridCellType      , only : grc
-   use ColumnType        , only : col
-   use LandunitType      , only : lun
-   use landunit_varcon   , only : istsoil
-   use abortutils        , only : endrun
-   use shr_log_mod       , only : errMsg => shr_log_errMsg
-   use clm_varcon        , only : dzsoi_decomp
-   use FuncPedotransferMod, only: get_ipedof
-!   use SoilWaterPlantSinkMod, only : Compute_EffecRootFrac_And_VertTranSink_Default
+  use PatchType,                     only : patch
+  use shr_kind_mod,                  only : r8 => shr_kind_r8
+  use decompMod,                     only : bounds_type, subgrid_level_column
+  use WaterStateBulkType,            only : waterstatebulk_type
+  use WaterDiagnosticBulkType,       only : waterdiagnosticbulk_type
+  use WaterFluxBulkType,             only : waterfluxbulk_type
+  use Wateratm2lndBulkType,          only : wateratm2lndbulk_type
+  use ActiveLayerMod,                only : active_layer_type
+  use CanopyStateType,               only : canopystate_type
+  use TemperatureType,               only : temperature_type
+  use EnergyFluxType,                only : energyflux_type
+  use SoilStateType,                 only : soilstate_type
+  use CNProductsMod,                 only : cn_products_type
+  use clm_varctl,                    only : iulog
+  use clm_varctl,                    only : fates_parteh_mode
+  use clm_varctl,                    only : use_fates
+  use clm_varctl,                    only : fates_spitfire_mode
+  use clm_varctl,                    only : use_fates_tree_damage
+  use clm_varctl,                    only : use_fates_planthydro
+  use clm_varctl,                    only : use_fates_cohort_age_tracking
+  use clm_varctl,                    only : use_fates_ed_st3
+  use clm_varctl,                    only : use_fates_ed_prescribed_phys
+  use clm_varctl,                    only : use_fates_logging
+  use clm_varctl,                    only : use_fates_inventory_init
+  use clm_varctl,                    only : use_fates_fixed_biogeog
+  use clm_varctl,                    only : use_fates_nocomp
+  use clm_varctl,                    only : use_fates_sp
+  use clm_varctl,                    only : fates_inventory_ctrl_filename
+  use clm_varctl,                    only : use_nitrif_denitrif
+  use clm_varctl,                    only : use_lch4
+  use clm_varcon,                    only : tfrz
+  use clm_varcon,                    only : spval
+  use clm_varcon,                    only : denice
+  use clm_varcon,                    only : ispval
+  use clm_varpar,                    only : surfpft_lb, surfpft_ub
+  use clm_varpar,                    only : numrad
+  use clm_varpar,                    only : ivis
+  use clm_varpar,                    only : inir
+  use clm_varpar,                    only : nlevdecomp
+  use clm_varpar,                    only : nlevsoi
+  use PhotosynthesisMod,             only : photosyns_type
+  use atm2lndType,                   only : atm2lnd_type
+  use SurfaceAlbedoType,             only : surfalb_type
+  use SolarAbsorbedType,             only : solarabs_type
+  use SoilBiogeochemCarbonFluxType,  only :  soilbiogeochem_carbonflux_type
+  use SoilBiogeochemCarbonStateType, only : soilbiogeochem_carbonstate_type
+  use FrictionVelocityMod,           only : frictionvel_type
+  use clm_time_manager,              only : is_restart, is_first_restart_step
+  use ncdio_pio,                     only : file_desc_t, ncd_int, ncd_double
+  use restUtilMod,                   only : restartvar
+  use clm_time_manager,              only : get_curr_days_per_year
+  use clm_time_manager,              only : get_curr_date, get_ref_date
+  use clm_time_manager,              only : timemgr_datediff, get_step_size_real
+  use spmdMod,                       only : masterproc
+  use decompMod,                     only : get_proc_clumps, get_clump_bounds
+  use GridCellType,                  only : grc
+  use ColumnType,                    only : col
+  use LandunitType,                  only : lun
+  use landunit_varcon,               only : istsoil
+  use abortutils,                    only : endrun
+  use shr_log_mod,                   only : errMsg => shr_log_errMsg
+  use clm_varcon,                    only : dzsoi_decomp
+  use FuncPedotransferMod,           only: get_ipedof
+  use dynSubgridControlMod,          only : get_do_harvest
+  use dynHarvestMod,                 only : num_harvest_inst, harvest_varnames
+  use dynHarvestMod,                 only : harvest_units, mass_units, unitless_units
+  use dynHarvestMod,                 only : dynHarvest_interp_resolve_harvesttypes
+  use perf_mod,                      only : t_startf, t_stopf
+  use SoilBiogeochemDecompCascadeConType, only : mimics_decomp, decomp_method
+  use SoilBiogeochemDecompCascadeConType, only : no_soil_decomp, century_decomp
 
-   ! Used FATES Modules
-   use FatesInterfaceMod , only : fates_interface_type
-   use FatesInterfaceMod, only : FatesInterfaceInit, FatesReportParameters
-   use FatesInterfaceMod, only : SetFatesGlobalElements1
-   use FatesInterfaceMod, only : SetFatesGlobalElements2
-   use FatesInterfaceMod     , only : allocate_bcin
-   use FatesInterfaceMod     , only : allocate_bcout
-   use FatesInterfaceMod     , only : allocate_bcpconst
-   use FatesInterfaceMod     , only : set_bcpconst
-   use FatesInterfaceMod     , only : zero_bcs
-   use FatesInterfaceMod     , only : SetFatesTime
-   use FatesInterfaceMod     , only : set_fates_ctrlparms
-   use FatesInterfaceMod     , only : UpdateFatesRMeansTStep
-   use FatesInterfaceMod     , only : InitTimeAveragingGlobals
-   
-   use FatesHistoryInterfaceMod, only : fates_hist
-   use FatesRestartInterfaceMod, only : fates_restart_interface_type
+  use FatesInterfaceMod,             only : fates_interface_type
+  use FatesInterfaceMod,             only : FatesInterfaceInit, FatesReportParameters
+  use FatesInterfaceMod,             only : SetFatesGlobalElements1
+  use FatesInterfaceMod,             only : SetFatesGlobalElements2
+  use FatesInterfaceMod,             only : allocate_bcin
+  use FatesInterfaceMod,             only : allocate_bcout
+  use FatesInterfaceMod,             only : allocate_bcpconst
+  use FatesInterfaceMod,             only : set_bcpconst
+  use FatesInterfaceMod,             only : zero_bcs
+  use FatesInterfaceMod,             only : SetFatesTime
+  use FatesHLMRuntimeParamsMod,      only : hlm_runtime_params_inst
+  use FatesInterfaceMod,             only : UpdateFatesRMeansTStep
+  use FatesInterfaceMod,             only : InitTimeAveragingGlobals
+  use FatesHistoryInterfaceMod,      only : fates_hist
+  use FatesRestartInterfaceMod,      only : fates_restart_interface_type
+  use FatesPatchMod,                 only : fates_patch_type
+  use PRTGenericMod,                 only : num_elements
+  use FatesInterfaceTypesMod,        only : fates_maxPatchesPerSite
+  use FatesInterfaceTypesMod,        only : hlm_day_of_year
+  use EDMainMod,                     only : ed_ecosystem_dynamics
+  use EDMainMod,                     only : ed_update_site
+  use EDInitMod,                     only : init_patches
+  use EDSurfaceRadiationMod,         only : ED_SunShadeFracs, ED_Norman_Radiation
+  use EDBtranMod,                    only : btran_ed, get_active_suction_layers
+  use EDCanopyStructureMod,          only : canopy_summarization, update_hlm_dynamics
+  use EDCanopyStructureMod,          only : UpdateFatesAvgSnowDepth
+  use FatesPlantRespPhotosynthMod,   only : FatesPlantRespPhotosynthDrive
+  use EDAccumulateFluxesMod,         only : AccumulateFluxes_ED
+  use FatesSoilBGCFluxMod,           only : FluxIntoLitterPools
+  use FatesSoilBGCFluxMod,           only : UnPackNutrientAquisitionBCs
+  use FatesPlantHydraulicsMod,       only : hydraulics_drive
+  use FatesPlantHydraulicsMod,       only : HydrSiteColdStart
+  use FatesPlantHydraulicsMod,       only : InitHydrSites
+  use FatesPlantHydraulicsMod,       only : RestartHydrStates
+  use FATESFireBase,                 only : fates_fire_base_type
+  use FATESFireFactoryMod,           only : no_fire, scalar_lightning
+  use FATESFireFactoryMod,           only : successful_ignitions
+  use FATESFireFactoryMod,           only : anthro_ignitions, anthro_suppression
+  use FatesConstantsMod,             only : hlm_harvest_area_fraction
+  use FatesConstantsMod,             only : hlm_harvest_carbon
 
-   use FatesPatchMod         , only : fates_patch_type
-   use PRTGenericMod         , only : num_elements
-   use FatesInterfaceTypesMod, only : hlm_stepsize
-   use FatesInterfaceTypesMod, only : fates_maxPatchesPerSite
-   use FatesInterfaceTypesMod, only : hlm_use_fixed_biogeog
-   use FatesInterfaceTypesMod, only : hlm_use_nocomp
-   use FatesInterfaceTypesMod, only : hlm_day_of_year
-   use FatesInterfaceTypesMod, only : hlm_is_restart
-   use EDMainMod             , only : ed_ecosystem_dynamics
-   use EDMainMod             , only : ed_update_site
-   use EDInitMod             , only : init_patches
-   use EDPftVarcon           , only : EDpftvarcon_inst
-   use EDSurfaceRadiationMod , only : ED_SunShadeFracs, ED_Norman_Radiation
-   use EDBtranMod            , only : btran_ed, &
-                                      get_active_suction_layers
-   use EDCanopyStructureMod  , only : canopy_summarization, update_hlm_dynamics
-   use EDCanopyStructureMod  , only : UpdateFatesAvgSnowDepth
-   use FatesPlantRespPhotosynthMod, only : FatesPlantRespPhotosynthDrive
-   use EDAccumulateFluxesMod , only : AccumulateFluxes_ED
-   use FatesSoilBGCFluxMod    , only : FluxIntoLitterPools
-   use FatesSoilBGCFluxMod    , only : UnPackNutrientAquisitionBCs
-   use FatesPlantHydraulicsMod, only : hydraulics_drive
-   use FatesPlantHydraulicsMod, only : HydrSiteColdStart
-   use FatesPlantHydraulicsMod, only : InitHydrSites
-   use FatesPlantHydraulicsMod, only : RestartHydrStates
-   use FATESFireBase          , only : fates_fire_base_type
-   use FATESFireFactoryMod    , only : no_fire, scalar_lightning, successful_ignitions,&
-                                       anthro_ignitions, anthro_suppression
-   use dynSubgridControlMod   , only : get_do_harvest
-   use dynHarvestMod          , only : num_harvest_inst, harvest_varnames
-   use dynHarvestMod          , only : harvest_units, mass_units, unitless_units
-   use dynHarvestMod          , only : dynHarvest_interp_resolve_harvesttypes
-   use FatesConstantsMod      , only : hlm_harvest_area_fraction
-   use FatesConstantsMod      , only : hlm_harvest_carbon
-   use perf_mod               , only : t_startf, t_stopf
-   implicit none
-
-   type, public :: f2hmap_type
-
-      ! This is the associated column index of each FATES site
-      integer, allocatable :: fcolumn (:)
-
-      ! This is the associated site index of any HLM columns
-      ! This vector may be sparse, and non-sites have index 0
-      integer, allocatable :: hsites  (:)
-
+  type, public :: f2hmap_type
+    integer, allocatable :: fcolumn (:) ! the associated column index of each FATES site
+    integer, allocatable :: hsites  (:) ! the associated site index of any HLM columns
+                                        !   this vector may be sparse, and non-sites have index 0
    end type f2hmap_type
 
+  type, public :: hlm_fates_interface_type
 
-   type, public :: hlm_fates_interface_type
+    ! See above for descriptions of the sub-types populated
+    ! by thread.  This type is somewhat self-explanatory, in that it simply
+    ! breaks up memory and process by thread.  Each thread will have its
+    ! own list of sites, and boundary conditions for those sites
 
-      !      private
+    type(fates_interface_type), allocatable :: fates (:)
 
+    ! This memory structure is used to map fates sites
+    ! into the host model.  Currently, the FATES site
+    ! and its column number matching are its only members
 
-      ! See above for descriptions of the sub-types populated
-      ! by thread.  This type is somewhat self-explanatory, in that it simply
-      ! breaks up memory and process by thread.  Each thread will have its
-      ! own list of sites, and boundary conditions for those sites
+    type(f2hmap_type), allocatable  :: f2hmap(:)
 
-      type(fates_interface_type), allocatable :: fates (:)
+    ! fates_restart is the inteface calss for restarting the model
+    type(fates_restart_interface_type) :: fates_restart
 
-      ! This memory structure is used to map fates sites
-      ! into the host model.  Currently, the FATES site
-      ! and its column number matching are its only members
+    ! fates_fire_data_method determines the fire data passed from HLM to FATES
+    class(fates_fire_base_type), allocatable :: fates_fire_data_method
 
-      type(f2hmap_type), allocatable  :: f2hmap(:)
-
-      ! fates_restart is the inteface calss for restarting the model
-      type(fates_restart_interface_type) :: fates_restart
-
-      ! fates_fire_data_method determines the fire data passed from HLM to FATES
-      class(fates_fire_base_type), allocatable :: fates_fire_data_method
-
-   contains
+    contains
 
       procedure, public :: init
       procedure, public :: check_hlm_active
@@ -225,8 +196,8 @@ module CLMFatesInterfaceMod
       procedure, public  :: wrap_hydraulics_drive
       procedure, public  :: WrapUpdateFatesRmean
       procedure, public  :: wrap_WoodProducts
-      
-   end type hlm_fates_interface_type
+
+  end type hlm_fates_interface_type
 
    ! hlm_bounds_to_fates_bounds is not currently called outside the interface.
    ! Although there may be good reasons to, I privatized it so that the next
@@ -242,302 +213,177 @@ module CLMFatesInterfaceMod
    logical, private, allocatable :: copy_fates_var(:)  ! .true. -> copy variable from FATES to CTSM in clmfates_interface
                                                        ! .false. -> do not copy in clmfates_interface and use value already in memory
 
-   character(len=*), parameter, private :: sourcefile = &
-        __FILE__
+   character(len=*), parameter, private :: sourcefile = __FILE__
 
    public  :: CLMFatesGlobals1
    public  :: CLMFatesGlobals2
 
- contains
+  contains
 
-   subroutine CLMFatesGlobals1(surf_numpft,surf_numcft,maxsoil_patches)
+    subroutine CLMFatesGlobals1(surf_numpft, surf_numcft, maxsoil_patches)
 
-     ! --------------------------------------------------------------------------------
-     ! This is the first call to fates
-     ! We open the fates parameter file. And use that and some info on
-     ! namelist variables to determine how many patches need to be allocated
-     ! in CTSM
-     ! --------------------------------------------------------------------------------
+    ! ------------------------------------------------------------------------------------
+    ! This is the first call to fates
+    ! We open the fates parameter file. And use that and some info on
+    ! namelist variables to determine how many patches need to be allocated
+    ! in CTSM
+    ! ------------------------------------------------------------------------------------
 
-     integer,intent(in)                             :: surf_numpft
-     integer,intent(in)                             :: surf_numcft
-     integer,intent(out)                            :: maxsoil_patches
-     integer                                        :: pass_biogeog
-     integer                                        :: pass_nocomp
-     integer                                        :: pass_sp
-     integer                                        :: pass_masterproc
-     logical                                        :: verbose_output
-     
-     call t_startf('fates_globals1')
+    integer, intent(in)  :: surf_numpft     ! number of plant functional types (PFTs) from surface dataset
+    integer, intent(in)  :: surf_numcft     ! number of crop functional types (CFTs) from surface dataset
+    integer, intent(out) :: maxsoil_patches !
 
-     if (use_fates) then
+    call t_startf('fates_globals1')
 
-        verbose_output = .false.
-        call FatesInterfaceInit(iulog, verbose_output)
+    call FatesInterfaceInit(iulog, global_verbose=.false.)
 
-        ! Force FATES parameters that are recieve type, to the unset value
-        call set_fates_ctrlparms('flush_to_unset')
+    ! send parameters individually
+    call hlm_runtime_params_inst%set_use_fixed_biogeog(use_fates_fixed_biogeog)
+    call hlm_runtime_params_inst%set_use_nocomp(use_fates_nocomp)
+    call hlm_runtime_params_inst%set_use_sp(use_fates_sp)
+    call hlm_runtime_params_inst%set_masterproc(masterproc)
 
-        ! Send parameters individually
-        
-        if(use_fates_fixed_biogeog)then
-           pass_biogeog = 1
-        else
-           pass_biogeog = 0
-        end if
-        call set_fates_ctrlparms('use_fixed_biogeog',ival=pass_biogeog)
-        
-        if(use_fates_nocomp)then
-           pass_nocomp = 1
-        else
-           pass_nocomp = 0
-        end if
-        call set_fates_ctrlparms('use_nocomp',ival=pass_nocomp)
-        
-        if(use_fates_sp)then
-           pass_sp = 1
-        else
-           pass_sp = 0
-        end if
-        call set_fates_ctrlparms('use_sp',ival=pass_sp)
-        
-        if(masterproc)then
-           pass_masterproc = 1
-        else
-           pass_masterproc = 0
-        end if
-        call set_fates_ctrlparms('masterproc',ival=pass_masterproc)
+    ! The following call reads in the parameter file
+    ! and then uses that to determine the number of patches
+    ! FATES requires. We pass that to CLM here
+    ! so that it can perform some of its allocations.
+    ! During init 2, we will perform more size checks
+    ! and allocations on the FATES side, which require
+    ! some allocations from CLM (like soil layering)
+    call SetFatesGlobalElements1(use_fates, surf_numpft, surf_numcft)
 
-     end if
+    maxsoil_patches = fates_maxPatchesPerSite
 
-     ! The following call reads in the parameter file
-     ! and then uses that to determine the number of patches
-     ! FATES requires. We pass that to CLM here
-     ! so that it can perform some of its allocations.
-     ! During init 2, we will perform more size checks
-     ! and allocations on the FATES side, which require
-     ! some allocations from CLM (like soil layering)
+    call t_stopf('fates_globals1')
 
-     call SetFatesGlobalElements1(use_fates,surf_numpft,surf_numcft)
+  end subroutine CLMFatesGlobals1
 
-     maxsoil_patches = fates_maxPatchesPerSite
-     
-     call t_stopf('fates_globals1')
+    ! ====================================================================================
 
-     return
-   end subroutine CLMFatesGlobals1
+  subroutine CLMFatesGlobals2()
 
-   ! ===================================================================================
+    ! --------------------------------------------------------------------------------
+    ! This is one of the first calls to fates
+    ! Used for setting dimensions.  This MUST
+    ! be called after NL variables are specified and
+    ! after the FATES parameter file has been read in
+    ! Aside from setting global dimension info, which
+    ! is used in the history file, we also transfer
+    ! over the NL variables to FATES global settings.
+    ! --------------------------------------------------------------------------------
 
-   subroutine CLMFatesGlobals2()
+    call t_startf('fates_globals2')
 
-     ! --------------------------------------------------------------------------------
-     ! This is one of the first calls to fates
-     ! Used for setting dimensions.  This MUST
-     ! be called after NL variables are specified and
-     ! after the FATES parameter file has been read in
-     ! Aside from setting global dimension info, which
-     ! is used in the history file, we also transfer
-     ! over the NL variables to FATES global settings.
-     ! --------------------------------------------------------------------------------
-       
-     integer                                        :: pass_vertsoilc
-     integer                                        :: pass_ch4
-     integer                                        :: pass_spitfire
-     integer                                        :: pass_ed_st3
-     integer                                        :: pass_num_lu_harvest_cats
-     integer                                        :: pass_lu_harvest
-     integer                                        :: pass_logging
-     integer                                        :: pass_ed_prescribed_phys
-     integer                                        :: pass_planthydro
-     integer                                        :: pass_inventory_init
-     integer                                        :: pass_is_restart
-     integer                                        :: pass_cohort_age_tracking
-     integer                                        :: pass_tree_damage
+    if (use_fates) then
 
-     call t_startf('fates_globals2')
+      ! send parameters individually
+      call hlm_runtime_params_inst%set_num_swb(numrad)
+      call hlm_runtime_params_inst%set_ivis(ivis)
+      call hlm_runtime_params_inst%set_inir(inir)
+      call hlm_runtime_params_inst%set_maxlevsoil(nlevsoil)
+      call hlm_runtime_params_inst%set_hlm_name('CLM')
+      call hlm_runtime_params_inst%set_hio_ignore_val(spval)
+      call hlm_runtime_params_inst%set_ipedof(get_ipedof(0))
+      call hlm_runtime_params_inst%set_parteh_mode(fates_parteh_mode)
+      
+      ! CTSM-FATES is not fully coupled (yet)
+      ! So lets tell fates to use the RD competition mechanism
+      ! which has fewer boundary conditions (simpler)
+      call hlm_runtime_params_inst%set_nutrient_scheme('RD')
 
-     if (use_fates) then
+      select case (decomp_method)
+      case(mimics_decomp)
+        call hlm_runtime_params_inst%set_decomp_scheme('MIMICS')
+      case(century_decomp)
+        call hlm_runtime_params_inst%set_decomp_scheme('CENTURY')
+      case(no_soil_decomp)
+        call hlm_runtime_params_inst%set_decomp_scheme('NONE')
+      end select
 
-        
+      call hlm_runtime_params_inst%set_use_tree_damage(use_fates_tree_damage)
 
-        ! Send parameters individually
-        call set_fates_ctrlparms('num_sw_bbands',ival=numrad)
-        call set_fates_ctrlparms('vis_sw_index',ival=ivis)
-        call set_fates_ctrlparms('nir_sw_index',ival=inir)
+      ! These may be in a non-limiting status (ie when supplements)
+      ! are added, but they are always allocated and cycled non-the less
+      ! FATES may want to interact differently with other models
+      ! that don't even have these arrays allocated.
+      ! FATES also checks that if NO3 is cycled in ELM, then
+      ! any plant affinity parameters are checked.
 
-        call set_fates_ctrlparms('num_lev_soil',ival=nlevsoi)
-        call set_fates_ctrlparms('hlm_name',cval='CLM')
-        call set_fates_ctrlparms('hio_ignore_val',rval=spval)
-        call set_fates_ctrlparms('soilwater_ipedof',ival=get_ipedof(0))
-        
-        call set_fates_ctrlparms('parteh_mode',ival=fates_parteh_mode)
+      if (use_nitrif_denitrif) then 
+        call hlm_runtime_params_inst%set_nitrogen_spec(1)
+      else 
+        call hlm_runtime_params_inst%set_nitrogen_spec(2)
+      end if 
 
-        ! CTSM-FATES is not fully coupled (yet)
-        ! So lets tell fates to use the RD competition mechanism
-        ! which has fewer boundary conditions (simpler)
-        call set_fates_ctrlparms('nu_com',cval='RD')
+      ! Phosphorus is not tracked in CLM
+      call hlm_runtime_params_inst%set_phosphorus_spec(.false.)
 
-        if (decomp_method == mimics_decomp) then
-           call set_fates_ctrlparms('decomp_method',cval='MIMICS')
-        elseif(decomp_method == century_decomp ) then
-           call set_fates_ctrlparms('decomp_method',cval='CENTURY')
-        elseif(decomp_method == no_soil_decomp ) then
-           call set_fates_ctrlparms('decomp_method',cval='NONE')
-        end if
-
-        if(use_fates_tree_damage)then
-           pass_tree_damage = 1
-        else
-           pass_tree_damage = 0
-        end if
-        call set_fates_ctrlparms('use_tree_damage',ival=pass_tree_damage)
-        
-        ! These may be in a non-limiting status (ie when supplements)
-        ! are added, but they are always allocated and cycled non-the less
-        ! FATES may want to interact differently with other models
-        ! that don't even have these arrays allocated.
-        ! FATES also checks that if NO3 is cycled in ELM, then
-        ! any plant affinity parameters are checked.
-
-        if(use_nitrif_denitrif) then
-           call set_fates_ctrlparms('nitrogen_spec',ival=1)
-        else
-           call set_fates_ctrlparms('nitrogen_spec',ival=2)
-        end if
-
-        ! Phosphorus is not tracked in CLM
-        call set_fates_ctrlparms('phosphorus_spec',ival=0)
-
-
-        call set_fates_ctrlparms('spitfire_mode',ival=fates_spitfire_mode)
-        call set_fates_ctrlparms('sf_nofire_def',ival=no_fire)
-        call set_fates_ctrlparms('sf_scalar_lightning_def',ival=scalar_lightning)
-        call set_fates_ctrlparms('sf_successful_ignitions_def',ival=successful_ignitions)
-        call set_fates_ctrlparms('sf_anthro_ignitions_def',ival=anthro_ignitions)
-
-        ! This has no variable on the FATES side yet (RGK)
-        !call set_fates_ctrlparms('sf_anthro_suppression_def',ival=anthro_suppression)
-
-        if(is_restart()) then
-           pass_is_restart = 1
-        else
-           pass_is_restart = 0
-        end if
-        call set_fates_ctrlparms('is_restart',ival=pass_is_restart)
-
-        if(use_lch4) then
-           pass_ch4 = 1
-        else
-           pass_ch4 = 0
-        end if
-        call set_fates_ctrlparms('use_ch4',ival=pass_ch4)
-
-        ! use_vertsoilc: Carbon soil layer profile is assumed to be on all the time now
-        pass_vertsoilc = 1
-        call set_fates_ctrlparms('use_vertsoilc',ival=pass_vertsoilc)
-
-        if(use_fates_ed_st3) then
-           pass_ed_st3 = 1
-        else
-           pass_ed_st3 = 0
-        end if
-        call set_fates_ctrlparms('use_ed_st3',ival=pass_ed_st3)
-
-        if(use_fates_logging) then
-           pass_logging = 1
-        else
-           pass_logging = 0
-        end if
-        call set_fates_ctrlparms('use_logging',ival=pass_logging)
-
-        if(use_fates_ed_prescribed_phys) then
-           pass_ed_prescribed_phys = 1
-        else
-           pass_ed_prescribed_phys = 0
-        end if
-        call set_fates_ctrlparms('use_ed_prescribed_phys',ival=pass_ed_prescribed_phys)
-
-        if(use_fates_planthydro) then
-           pass_planthydro = 1
-        else
-           pass_planthydro = 0
-        end if
-        call set_fates_ctrlparms('use_planthydro',ival=pass_planthydro)
-
-        if(use_fates_cohort_age_tracking) then
-           pass_cohort_age_tracking = 1
-        else
-           pass_cohort_age_tracking = 0
-        end if
-        call set_fates_ctrlparms('use_cohort_age_tracking',ival=pass_cohort_age_tracking)
-
-        ! check fates logging namelist value first because hlm harvest overrides it
-        if(use_fates_logging) then
-           pass_logging = 1
-        else
-           pass_logging = 0
-        end if
-
-        if(get_do_harvest()) then
-           pass_logging = 1
-           pass_num_lu_harvest_cats = num_harvest_inst
-           pass_lu_harvest = 1
-        else
-           pass_lu_harvest = 0
-           pass_num_lu_harvest_cats = 0
-        end if
-
-        call set_fates_ctrlparms('use_lu_harvest',ival=pass_lu_harvest)
-        call set_fates_ctrlparms('num_lu_harvest_cats',ival=pass_num_lu_harvest_cats)
-        call set_fates_ctrlparms('use_logging',ival=pass_logging)
-
-        if(use_fates_inventory_init) then
-           pass_inventory_init = 1
-        else
-           pass_inventory_init = 0
-        end if
-        call set_fates_ctrlparms('use_inventory_init',ival=pass_inventory_init)
-
-        call set_fates_ctrlparms('inventory_ctrl_file',cval=fates_inventory_ctrl_filename)
-
-
-        ! Check through FATES parameters to see if all have been set
-        call set_fates_ctrlparms('check_allset')
-
-     end if
-
-     ! This determines the total amount of space it requires in its largest
-     ! dimension.  We are currently calling that the "cohort" dimension, but
-     ! it is really a utility dimension that captures the models largest
-     ! size need.
-     ! Sets:
-     ! fates_maxElementsPerPatch
-     ! num_elements
-     ! fates_maxElementsPerSite (where a site is roughly equivalent to a column)
-     ! (Note: this needs to be called when use_fates=.false. as well, becuase
-     ! it will return some nominal dimension sizes of 1
-
-     call SetFatesGlobalElements2(use_fates)
-
-     call t_stopf('fates_globals2')
-
-     return
-   end subroutine CLMFatesGlobals2
-
-   ! ===================================================================================
+      call hlm_runtime_params_inst%set_spitfire_mode(fates_spitfire_mode)
+      call hlm_runtime_params_inst%set_sf_nofire_def(no_fire)
+      call hlm_runtime_params_inst%set_sf_scalar_lightning_def(scalar_lightning)
+      call hlm_runtime_params_inst%set_sf_successful_ignitions_def(successful_ignitions)
+      call hlm_runtime_params_inst%set_sf_anthro_ignitions_def(anthro_ignitions)
   
-   subroutine CLMFatesTimesteps()
-     
-     hlm_stepsize = get_step_size_real()
+      call hlm_runtime_params_inst%set_is_restart(is_restart())
+      
+      call hlm_runtime_params_inst%set_use_ch4(use_lch4)
 
-     call InitTimeAveragingGlobals()
+      ! use_vertsoilc: Carbon soil layer profile is assumed to be on all the time now
+      call hlm_runtime_params_inst%set_use_vertsoilc(.true.)
+      call hlm_runtime_params_inst%set_use_ed_st3(use_fates_ed_st3)
+      call hlm_runtime_params_inst%set_use_ed_prescribed_phys(use_fates_ed_prescribed_phys)
+      call hlm_runtime_params_inst%set_use_planthydro(use_fates_planthydro)
+      call hlm_runtime_params_inst%set_use_cohort_age_tracking(use_fates_cohort_age_tracking)
 
-     return
-   end subroutine CLMFatesTimesteps
-   
-   
-   ! ====================================================================================
+      ! check fates logging namelist value first because hlm harvest overrides it
+      if (get_do_harvest()) then 
+        call hlm_runtime_params_inst%set_use_logging(.true.)
+        call hlm_runtime_params_inst%set_use_lu_harvest(.true.)
+        call hlm_runtime_params_inst%set_num_lu_harvest_cats(num_harvest_inst)
+      else 
+        call hlm_runtime_params_inst%set_use_logging(use_fates_logging)
+        call hlm_runtime_params_inst%set_use_lu_harvest(.false.)
+        call hlm_runtime_params_inst%set_num_lu_harvest_cats(0)
+      end if 
+
+      call hlm_runtime_params_inst%set_use_inventory_init(use_fates_inventory_init)
+      call hlm_runtime_params_inst%set_inventory_ctrl_file(fates_inventory_ctrl_filename)
+
+      ! check through FATES parameters to see if all have been set and 
+      ! they are all compatible
+      call hlm_runtime_params_inst%check_compatibility()
+
+    end if
+
+    ! This determines the total amount of space it requires in its largest
+    ! dimension.  We are currently calling that the "cohort" dimension, but
+    ! it is really a utility dimension that captures the models largest
+    ! size need.
+    ! Sets:
+    ! fates_maxElementsPerPatch
+    ! num_elements
+    ! fates_maxElementsPerSite (where a site is roughly equivalent to a column)
+    ! (Note: this needs to be called when use_fates=.false. as well, becuase
+    ! it will return some nominal dimension sizes of 1
+    call SetFatesGlobalElements2(use_fates)
+
+    call t_stopf('fates_globals2')
+
+  end subroutine CLMFatesGlobals2
+
+  ! ===================================================================================
+
+    subroutine CLMFatesTimesteps()
+
+    call hlm_runtime_params_inst%set_stepsize(get_step_size_real())
+
+    call InitTimeAveragingGlobals()
+
+    return
+    end subroutine CLMFatesTimesteps
+
+
+  ! ====================================================================================
 
    subroutine init(this, bounds_proc )
 
@@ -1726,7 +1572,7 @@ module CLMFatesInterfaceMod
           do s = 1,this%fates(nc)%nsites
             call this%fates(nc)%sites(s)%Create(this%fates(nc)%bc_in(s)%nlevsoil,        &
               this%fates(nc)%bc_in(s)%zi_sisl, this%fates(nc)%bc_in(s)%dz_sisl,          & 
-              this%fates(nc)%bc_in(s)%z_sisl, hlm_use_fixed_biogeog, hlm_use_nocomp,     &
+              this%fates(nc)%bc_in(s)%z_sisl,                                            &
               hlm_day_of_year, this%fates(nc)%bc_in(s)%pft_areafrac)
           end do
 
