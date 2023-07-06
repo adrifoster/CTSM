@@ -222,156 +222,156 @@ module CLMFatesInterfaceMod
 
     subroutine CLMFatesGlobals1(surf_numpft, surf_numcft, maxsoil_patches)
 
-    ! ------------------------------------------------------------------------------------
-    ! This is the first call to fates
-    ! We open the fates parameter file. And use that and some info on
-    ! namelist variables to determine how many patches need to be allocated
-    ! in CTSM
-    ! ------------------------------------------------------------------------------------
+      ! ------------------------------------------------------------------------------------
+      ! This is the first call to fates
+      ! We open the fates parameter file. And use that and some info on
+      ! namelist variables to determine how many patches need to be allocated
+      ! in CTSM
+      ! ------------------------------------------------------------------------------------
 
-    integer, intent(in)  :: surf_numpft     ! number of plant functional types (PFTs) from surface dataset
-    integer, intent(in)  :: surf_numcft     ! number of crop functional types (CFTs) from surface dataset
-    integer, intent(out) :: maxsoil_patches !
+      integer, intent(in)  :: surf_numpft     ! number of plant functional types (PFTs) from surface dataset
+      integer, intent(in)  :: surf_numcft     ! number of crop functional types (CFTs) from surface dataset
+      integer, intent(out) :: maxsoil_patches !
 
-    call t_startf('fates_globals1')
+      call t_startf('fates_globals1')
 
-    call FatesInterfaceInit(iulog, global_verbose=.false.)
+      call FatesInterfaceInit(iulog, global_verbose=.false.)
 
-    ! send parameters individually
-    call hlm_runtime_params_inst%set_use_fixed_biogeog(use_fates_fixed_biogeog)
-    call hlm_runtime_params_inst%set_use_nocomp(use_fates_nocomp)
-    call hlm_runtime_params_inst%set_use_sp(use_fates_sp)
-    call hlm_runtime_params_inst%set_masterproc(masterproc)
+      ! send parameters individually
+      call hlm_runtime_params_inst%set_use_fixed_biogeog(use_fates_fixed_biogeog)
+      call hlm_runtime_params_inst%set_use_nocomp(use_fates_nocomp)
+      call hlm_runtime_params_inst%set_use_sp(use_fates_sp)
+      call hlm_runtime_params_inst%set_masterproc(masterproc)
 
-    ! The following call reads in the parameter file
-    ! and then uses that to determine the number of patches
-    ! FATES requires. We pass that to CLM here
-    ! so that it can perform some of its allocations.
-    ! During init 2, we will perform more size checks
-    ! and allocations on the FATES side, which require
-    ! some allocations from CLM (like soil layering)
-    call SetFatesGlobalElements1(use_fates, surf_numpft, surf_numcft)
+      ! The following call reads in the parameter file
+      ! and then uses that to determine the number of patches
+      ! FATES requires. We pass that to CLM here
+      ! so that it can perform some of its allocations.
+      ! During init 2, we will perform more size checks
+      ! and allocations on the FATES side, which require
+      ! some allocations from CLM (like soil layering)
+      call SetFatesGlobalElements1(use_fates, surf_numpft, surf_numcft)
 
-    maxsoil_patches = fates_maxPatchesPerSite
+      maxsoil_patches = fates_maxPatchesPerSite
 
-    call t_stopf('fates_globals1')
+      call t_stopf('fates_globals1')
 
-  end subroutine CLMFatesGlobals1
+    end subroutine CLMFatesGlobals1
 
     ! ====================================================================================
 
-  subroutine CLMFatesGlobals2()
+    subroutine CLMFatesGlobals2()
 
-    ! --------------------------------------------------------------------------------
-    ! This is one of the first calls to fates
-    ! Used for setting dimensions.  This MUST
-    ! be called after NL variables are specified and
-    ! after the FATES parameter file has been read in
-    ! Aside from setting global dimension info, which
-    ! is used in the history file, we also transfer
-    ! over the NL variables to FATES global settings.
-    ! --------------------------------------------------------------------------------
+      ! --------------------------------------------------------------------------------
+      ! This is one of the first calls to fates
+      ! Used for setting dimensions.  This MUST
+      ! be called after NL variables are specified and
+      ! after the FATES parameter file has been read in
+      ! Aside from setting global dimension info, which
+      ! is used in the history file, we also transfer
+      ! over the NL variables to FATES global settings.
+      ! --------------------------------------------------------------------------------
 
-    call t_startf('fates_globals2')
+      call t_startf('fates_globals2')
 
-    if (use_fates) then
+      if (use_fates) then
 
-      ! send parameters individually
-      call hlm_runtime_params_inst%set_num_swb(numrad)
-      call hlm_runtime_params_inst%set_ivis(ivis)
-      call hlm_runtime_params_inst%set_inir(inir)
-      call hlm_runtime_params_inst%set_maxlevsoil(nlevsoil)
-      call hlm_runtime_params_inst%set_hlm_name('CLM')
-      call hlm_runtime_params_inst%set_hio_ignore_val(spval)
-      call hlm_runtime_params_inst%set_ipedof(get_ipedof(0))
-      call hlm_runtime_params_inst%set_parteh_mode(fates_parteh_mode)
-      
-      ! CTSM-FATES is not fully coupled (yet)
-      ! So lets tell fates to use the RD competition mechanism
-      ! which has fewer boundary conditions (simpler)
-      call hlm_runtime_params_inst%set_nutrient_scheme('RD')
+        ! send parameters individually
+        call hlm_runtime_params_inst%set_num_swb(numrad)
+        call hlm_runtime_params_inst%set_ivis(ivis)
+        call hlm_runtime_params_inst%set_inir(inir)
+        call hlm_runtime_params_inst%set_maxlevsoil(nlevsoil)
+        call hlm_runtime_params_inst%set_hlm_name('CLM')
+        call hlm_runtime_params_inst%set_hio_ignore_val(spval)
+        call hlm_runtime_params_inst%set_ipedof(get_ipedof(0))
+        call hlm_runtime_params_inst%set_parteh_mode(fates_parteh_mode)
+        
+        ! CTSM-FATES is not fully coupled (yet)
+        ! So lets tell fates to use the RD competition mechanism
+        ! which has fewer boundary conditions (simpler)
+        call hlm_runtime_params_inst%set_nutrient_scheme('RD')
 
-      select case (decomp_method)
-      case(mimics_decomp)
-        call hlm_runtime_params_inst%set_decomp_scheme('MIMICS')
-      case(century_decomp)
-        call hlm_runtime_params_inst%set_decomp_scheme('CENTURY')
-      case(no_soil_decomp)
-        call hlm_runtime_params_inst%set_decomp_scheme('NONE')
-      end select
+        select case (decomp_method)
+        case(mimics_decomp)
+          call hlm_runtime_params_inst%set_decomp_scheme('MIMICS')
+        case(century_decomp)
+          call hlm_runtime_params_inst%set_decomp_scheme('CENTURY')
+        case(no_soil_decomp)
+          call hlm_runtime_params_inst%set_decomp_scheme('NONE')
+        end select
 
-      call hlm_runtime_params_inst%set_use_tree_damage(use_fates_tree_damage)
+        call hlm_runtime_params_inst%set_use_tree_damage(use_fates_tree_damage)
 
-      ! These may be in a non-limiting status (ie when supplements)
-      ! are added, but they are always allocated and cycled non-the less
-      ! FATES may want to interact differently with other models
-      ! that don't even have these arrays allocated.
-      ! FATES also checks that if NO3 is cycled in ELM, then
-      ! any plant affinity parameters are checked.
+        ! These may be in a non-limiting status (ie when supplements)
+        ! are added, but they are always allocated and cycled non-the less
+        ! FATES may want to interact differently with other models
+        ! that don't even have these arrays allocated.
+        ! FATES also checks that if NO3 is cycled in ELM, then
+        ! any plant affinity parameters are checked.
 
-      if (use_nitrif_denitrif) then 
-        call hlm_runtime_params_inst%set_nitrogen_spec(1)
-      else 
-        call hlm_runtime_params_inst%set_nitrogen_spec(2)
-      end if 
+        if (use_nitrif_denitrif) then 
+          call hlm_runtime_params_inst%set_nitrogen_spec(1)
+        else 
+          call hlm_runtime_params_inst%set_nitrogen_spec(2)
+        end if 
 
-      ! Phosphorus is not tracked in CLM
-      call hlm_runtime_params_inst%set_phosphorus_spec(.false.)
+        ! Phosphorus is not tracked in CLM
+        call hlm_runtime_params_inst%set_phosphorus_spec(.false.)
 
-      call hlm_runtime_params_inst%set_spitfire_mode(fates_spitfire_mode)
-      call hlm_runtime_params_inst%set_sf_nofire_def(no_fire)
-      call hlm_runtime_params_inst%set_sf_scalar_lightning_def(scalar_lightning)
-      call hlm_runtime_params_inst%set_sf_successful_ignitions_def(successful_ignitions)
-      call hlm_runtime_params_inst%set_sf_anthro_ignitions_def(anthro_ignitions)
-  
-      call hlm_runtime_params_inst%set_is_restart(is_restart())
-      
-      call hlm_runtime_params_inst%set_use_ch4(use_lch4)
+        call hlm_runtime_params_inst%set_spitfire_mode(fates_spitfire_mode)
+        call hlm_runtime_params_inst%set_sf_nofire_def(no_fire)
+        call hlm_runtime_params_inst%set_sf_scalar_lightning_def(scalar_lightning)
+        call hlm_runtime_params_inst%set_sf_successful_ignitions_def(successful_ignitions)
+        call hlm_runtime_params_inst%set_sf_anthro_ignitions_def(anthro_ignitions)
+    
+        call hlm_runtime_params_inst%set_is_restart(is_restart())
+        
+        call hlm_runtime_params_inst%set_use_ch4(use_lch4)
 
-      ! use_vertsoilc: Carbon soil layer profile is assumed to be on all the time now
-      call hlm_runtime_params_inst%set_use_vertsoilc(.true.)
-      call hlm_runtime_params_inst%set_use_ed_st3(use_fates_ed_st3)
-      call hlm_runtime_params_inst%set_use_ed_prescribed_phys(use_fates_ed_prescribed_phys)
-      call hlm_runtime_params_inst%set_use_planthydro(use_fates_planthydro)
-      call hlm_runtime_params_inst%set_use_cohort_age_tracking(use_fates_cohort_age_tracking)
+        ! use_vertsoilc: Carbon soil layer profile is assumed to be on all the time now
+        call hlm_runtime_params_inst%set_use_vertsoilc(.true.)
+        call hlm_runtime_params_inst%set_use_ed_st3(use_fates_ed_st3)
+        call hlm_runtime_params_inst%set_use_ed_prescribed_phys(use_fates_ed_prescribed_phys)
+        call hlm_runtime_params_inst%set_use_planthydro(use_fates_planthydro)
+        call hlm_runtime_params_inst%set_use_cohort_age_tracking(use_fates_cohort_age_tracking)
 
-      ! check fates logging namelist value first because hlm harvest overrides it
-      if (get_do_harvest()) then 
-        call hlm_runtime_params_inst%set_use_logging(.true.)
-        call hlm_runtime_params_inst%set_use_lu_harvest(.true.)
-        call hlm_runtime_params_inst%set_num_lu_harvest_cats(num_harvest_inst)
-      else 
-        call hlm_runtime_params_inst%set_use_logging(use_fates_logging)
-        call hlm_runtime_params_inst%set_use_lu_harvest(.false.)
-        call hlm_runtime_params_inst%set_num_lu_harvest_cats(0)
-      end if 
+        ! check fates logging namelist value first because hlm harvest overrides it
+        if (get_do_harvest()) then 
+          call hlm_runtime_params_inst%set_use_logging(.true.)
+          call hlm_runtime_params_inst%set_use_lu_harvest(.true.)
+          call hlm_runtime_params_inst%set_num_lu_harvest_cats(num_harvest_inst)
+        else 
+          call hlm_runtime_params_inst%set_use_logging(use_fates_logging)
+          call hlm_runtime_params_inst%set_use_lu_harvest(.false.)
+          call hlm_runtime_params_inst%set_num_lu_harvest_cats(0)
+        end if 
 
-      call hlm_runtime_params_inst%set_use_inventory_init(use_fates_inventory_init)
-      call hlm_runtime_params_inst%set_inventory_ctrl_file(fates_inventory_ctrl_filename)
+        call hlm_runtime_params_inst%set_use_inventory_init(use_fates_inventory_init)
+        call hlm_runtime_params_inst%set_inventory_ctrl_file(fates_inventory_ctrl_filename)
 
-      ! check through FATES parameters to see if all have been set and 
-      ! they are all compatible
-      call hlm_runtime_params_inst%check_compatibility()
+        ! check through FATES parameters to see if all have been set and 
+        ! they are all compatible
+        call hlm_runtime_params_inst%check_compatibility()
 
-    end if
+      end if
 
-    ! This determines the total amount of space it requires in its largest
-    ! dimension.  We are currently calling that the "cohort" dimension, but
-    ! it is really a utility dimension that captures the models largest
-    ! size need.
-    ! Sets:
-    ! fates_maxElementsPerPatch
-    ! num_elements
-    ! fates_maxElementsPerSite (where a site is roughly equivalent to a column)
-    ! (Note: this needs to be called when use_fates=.false. as well, becuase
-    ! it will return some nominal dimension sizes of 1
-    call SetFatesGlobalElements2(use_fates)
+      ! This determines the total amount of space it requires in its largest
+      ! dimension.  We are currently calling that the "cohort" dimension, but
+      ! it is really a utility dimension that captures the models largest
+      ! size need.
+      ! Sets:
+      ! fates_maxElementsPerPatch
+      ! num_elements
+      ! fates_maxElementsPerSite (where a site is roughly equivalent to a column)
+      ! (Note: this needs to be called when use_fates=.false. as well, becuase
+      ! it will return some nominal dimension sizes of 1
+      call SetFatesGlobalElements2(use_fates)
 
-    call t_stopf('fates_globals2')
+      call t_stopf('fates_globals2')
 
-  end subroutine CLMFatesGlobals2
+    end subroutine CLMFatesGlobals2
 
-  ! ===================================================================================
+  ! ======================================================================================
 
     subroutine CLMFatesTimesteps()
 
