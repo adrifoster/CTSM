@@ -152,11 +152,20 @@ module clm_varctl
   ! true => separate crop landunit is not created by default
   logical, public :: create_crop_landunit = .false.     
   
+  ! number of hillslopes per landunit
+  integer, public :: nhillslope = 0
+
+  ! maximum number of hillslope columns per landunit
+  integer, public :: max_columns_hillslope = 1
+
   ! do not irrigate by default
   logical, public :: irrigate = .false.            
 
   ! set saturated excess runoff to zero for crops
   logical, public :: crop_fsat_equals_zero = .false.
+
+  ! remove this fraction of crop residues to a 1-year product pool (instead of going to litter)
+  real(r8), public :: crop_residue_removal_frac = 0.0
   
   !----------------------------------------------------------
   ! Other subgrid logic
@@ -221,6 +230,8 @@ module clm_varctl
 
   ! which snow cover fraction parameterization to use
   character(len=64), public :: snow_cover_fraction_method
+  ! which snow thermal conductivity parameterization to use
+  character(len=25), public :: snow_thermal_cond_method
 
   ! atmospheric CO2 molar ratio (by volume) (umol/mol)
   real(r8), public :: co2_ppmv     = 355._r8            !
@@ -308,6 +319,8 @@ module clm_varctl
   logical, public            :: use_fates_inventory_init = .false.      ! true => initialize fates from inventory
   logical, public            :: use_fates_fixed_biogeog = .false.       ! true => use fixed biogeography mode
   logical, public            :: use_fates_nocomp = .false.              ! true => use no comopetition mode
+  logical, public            :: use_fates_luh = .false.                 ! true => use FATES landuse data mode
+  character(len=256), public :: fluh_timeseries = ''                    ! filename for fates landuse timeseries data
   character(len=256), public :: fates_inventory_ctrl_filename = ''      ! filename for inventory control
 
   ! FATES SP AND FATES BGC are MUTUTALLY EXCLUSIVE, THEY CAN'T BOTH BE ON
@@ -371,7 +384,15 @@ module clm_varctl
   integer, public :: soil_layerstruct_userdefined_nlevsoi = iundef
 
   !----------------------------------------------------------
-  !excess ice physics switch
+  ! hillslope hydrology switch
+  !----------------------------------------------------------
+
+  logical, public :: use_hillslope = .false. ! true => use multi-column hillslope hydrology
+  logical, public :: downscale_hillslope_meteorology = .false. ! true => downscale meteorological forcing in hillslope model
+  logical, public :: use_hillslope_routing = .false. ! true => use surface water routing in hillslope hydrology
+
+  !----------------------------------------------------------
+  ! excess ice physics switch
   !----------------------------------------------------------
   logical, public :: use_excess_ice = .false. ! true. => use excess ice physics
 
