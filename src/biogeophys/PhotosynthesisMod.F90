@@ -1514,6 +1514,8 @@ contains
          if ( stomatalcond_mtd == stomatalcond_mtd_bb1987 ) then
             bbb(p) = max (bbbopt(p)*btran(p), 1._r8)
             mbb(p) = mbbopt(patch%itype(p))
+         else if ( stomatalcond_mtd == stomatalcond_mtd_medlyn2011 ) then 
+            medlynintercept(patch%itype(p)) = max(medlynintercept(patch%itype(p))*btran(p), 1._r8)
          end if
 
          ! kc, ko, cp, from: Bernacchi et al (2001) Plant, Cell and Environment 24:253-259
