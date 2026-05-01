@@ -2519,7 +2519,9 @@ module CLMFatesInterfaceMod
                  this%fates(nc)%bc_in(s)%h2o_liqvol_sl(j)    = h2osoi_liqvol(c,j)
                  this%fates(nc)%bc_in(s)%eff_porosity_sl(j)  = eff_porosity(c,j)
                  this%fates(nc)%bc_in(s)%watsat_sl(j)        = watsat(c,j)
+                 this%fates(nc)%bc_in(s)%sucsat_sisl(j)      = sucsat(c,j)
               end do
+               this%fates(nc)%bc_in(s)%netrad_net_pa(j) = energyflux_inst%netrad_patch(j)
 
            else
               this%fates(nc)%bc_in(s)%filter_btran = .false.
@@ -2527,6 +2529,8 @@ module CLMFatesInterfaceMod
               this%fates(nc)%bc_in(s)%h2o_liqvol_sl(:)    = -999._r8
               this%fates(nc)%bc_in(s)%eff_porosity_sl(:)  = -999._r8
               this%fates(nc)%bc_in(s)%watsat_sl(:)        = -999._r8
+              this%fates(nc)%bc_in(s)%netrad_net_pa(:)        = -999._r8
+              this%fates(nc)%bc_in(s)%sucsat_sisl(:)        = -999._r8
            end if
 
         end do
@@ -3682,6 +3686,7 @@ module CLMFatesInterfaceMod
 
          this%fates(nc)%bc_in(s)%swrad_net_pa(ifp) = solarabs_inst%fsa_patch(p)
          this%fates(nc)%bc_in(s)%lwrad_net_pa(ifp) = energyflux_inst%eflx_lwrad_net_patch(p)
+         !this%fates(nc)%bc_in(s)%netrad_net_pa(ifp) = energyflux_inst%netrad_patch(p)
         end do
    end do
 
